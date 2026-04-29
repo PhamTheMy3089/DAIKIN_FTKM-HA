@@ -20,9 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import (
     decode_hex_int,
     decode_le_uint16,
-    decode_mode,
     encode_hex_byte,
-    encode_le_uint16,
     find_pv,
 )
 from .config_flow import CONF_HOST
@@ -31,16 +29,13 @@ from .const import (
     DOMAIN,
     FAN_MODE_HEX_MAP,
     FAN_MODE_TO_HEX,
-    FAN_PARAM_BY_MODE,
-    FIELD_FAN_COOL,
-    FIELD_FAN_HEAT,
+    FIELD_FAN_READ,
+    FIELD_FAN_WRITE_PARAM,
     FIELD_INDOOR_HUMIDITY,
     FIELD_INDOOR_TEMP,
     FIELD_MODE,
     FIELD_POWER,
     FIELD_SETPOINT,
-    FIELD_TARGET_HUMIDITY,
-    HVAC_MODE_HEX_MAP,
     HVAC_MODE_TO_HEX,
     MANUFACTURER,
     MAX_TEMP,
@@ -48,11 +43,13 @@ from .const import (
     TEMP_STEP,
     WRITE_ADDR,
     WRITE_ENTITY,
+    WRITE_ROOT_ENTITY,
 )
 from .coordinator import DaikinCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Map raw int mode value → HVACMode (e_3003.p_01 is a single hex byte)
 _HVAC_INT_MAP: dict[int, HVACMode] = {
     0: HVACMode.FAN_ONLY,
     1: HVACMode.HEAT,
@@ -123,13 +120,14 @@ class DaikinClimate(CoordinatorEntity[DaikinCoordinator], ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        power_raw = find_pv(self.coordinator.data, ADDR_INDOOR, *FIELD_POWER)
-        # Power field: "00" = off, "01" = on (1-byte hex)
-        if power_raw in ("00", "0000", None):
-            return HVACMode.OFF
-
+        # e_3003.p_02 was confirmed to stay "00" in both running and idle states,
+        # so it cannot be used as a reliable power-state indicator.
+        # Instead, treat the entity as ON whenever a valid mode can be read.
+        # Writing "00" to p_02 still serves as the off command.
         mode_raw = find_pv(self.coordinator.data, ADDR_INDOOR, *FIELD_MODE)
-        mode_int = decode_mode(mode_raw)
+        if mode_raw is None:
+            return HVACMode.OFF
+        mode_int = decode_hex_int(mode_raw)
         return _HVAC_INT_MAP.get(mode_int, HVACMode.OFF)  # type: ignore[arg-type]
 
     @property
@@ -141,10 +139,9 @@ class DaikinClimate(CoordinatorEntity[DaikinCoordinator], ClimateEntity):
 
     @property
     def fan_mode(self) -> str:
-        # Fan param depends on current mode; fall back to cool's p_09
-        mode = self.hvac_mode
-        fan_param = FAN_PARAM_BY_MODE.get(mode, FIELD_FAN_COOL[1])
-        raw = find_pv(self.coordinator.data, ADDR_INDOOR, WRITE_ENTITY, fan_param)
+        # Read from e_3001.p_09 (read-only status entity).
+        # Confirmed: "0A00" (LE=10) = auto from live device data.
+        raw = find_pv(self.coordinator.data, ADDR_INDOOR, *FIELD_FAN_READ)
         if raw:
             return FAN_MODE_HEX_MAP.get(raw.upper(), FAN_AUTO)
         return FAN_AUTO
@@ -154,23 +151,26 @@ class DaikinClimate(CoordinatorEntity[DaikinCoordinator], ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         api = self.coordinator.api
         if hvac_mode == HVACMode.OFF:
-            await api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_POWER[1], "00")
+            await api.write(WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_POWER[2], "00")
         else:
             mode_hex = HVAC_MODE_TO_HEX.get(hvac_mode)
             if mode_hex is None:
                 _LOGGER.error("Unknown HVAC mode: %s", hvac_mode)
                 return
-            # Power on first, then set mode
-            await api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_POWER[1], "01")
-            await api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_MODE[1], mode_hex)
+            await api.write(WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_POWER[2], "01")
+            await api.write(WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_MODE[2], mode_hex)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
-        await self.coordinator.api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_POWER[1], "01")
+        await self.coordinator.api.write(
+            WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_POWER[2], "01"
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:
-        await self.coordinator.api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_POWER[1], "00")
+        await self.coordinator.api.write(
+            WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_POWER[2], "00"
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -179,7 +179,9 @@ class DaikinClimate(CoordinatorEntity[DaikinCoordinator], ClimateEntity):
             return
         # Encode: °C × 2 → int → 2-char hex byte. E.g. 28.0 → 56 → "38"
         encoded = encode_hex_byte(int(round(temp * 2)))
-        await self.coordinator.api.write(WRITE_ADDR, WRITE_ENTITY, FIELD_SETPOINT[1], encoded)
+        await self.coordinator.api.write(
+            WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_SETPOINT[2], encoded
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
@@ -187,7 +189,8 @@ class DaikinClimate(CoordinatorEntity[DaikinCoordinator], ClimateEntity):
         if hex_val is None:
             _LOGGER.error("Unknown fan mode: %s", fan_mode)
             return
-        current_mode = self.hvac_mode
-        fan_param = FAN_PARAM_BY_MODE.get(current_mode, FIELD_FAN_COOL[1])
-        await self.coordinator.api.write(WRITE_ADDR, WRITE_ENTITY, fan_param, hex_val)
+        # Write to e_3003.p_2F — single param for all HVAC modes (confirmed from device data)
+        await self.coordinator.api.write(
+            WRITE_ADDR, WRITE_ROOT_ENTITY, WRITE_ENTITY, FIELD_FAN_WRITE_PARAM, hex_val
+        )
         await self.coordinator.async_request_refresh()

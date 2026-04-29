@@ -27,6 +27,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import (
     decode_hex_int,
+    decode_le_int16,
     decode_le_uint16,
     find_energy_today,
     find_pv,
@@ -80,8 +81,9 @@ def _make_descriptions() -> list[DaikinSensorDescription]:
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-            # e_A00D.p_01 in adr_0200 — confirmed by local_daikin reference
-            value_fn=lambda d: decode_hex_int(find_pv(d, ADDR_OUTDOOR, *FIELD_OUTDOOR_TEMP)),
+            # e_A00D.p_01: signed LE int16, divide by 2 → °C
+            # Confirmed: "3D00" (LE=61) → 30.5°C; "4100" (LE=65) → 32.5°C
+            value_fn=lambda d: _outdoor_temp_c(d),
         ),
         DaikinSensorDescription(
             key="compressor_frequency",
@@ -89,7 +91,7 @@ def _make_descriptions() -> list[DaikinSensorDescription]:
             device_class=SensorDeviceClass.FREQUENCY,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfFrequency.HERTZ,
-            # e_A005.p_09 in adr_0200 — LE uint16; e.g. "7200" → 114 Hz
+            # e_A005.p_09: LE uint16 = Hz (shows last-run freq; 0 when never run)
             value_fn=lambda d: decode_le_uint16(find_pv(d, ADDR_OUTDOOR, *FIELD_COMPRESSOR_FREQ)),
         ),
         DaikinSensorDescription(
@@ -98,9 +100,7 @@ def _make_descriptions() -> list[DaikinSensorDescription]:
             device_class=SensorDeviceClass.POWER,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            # e_2008.p_01 in adr_0200 — LE uint16 × 0.1 kW
-            # FIX: pydaikin integration returns 0 because it does not read this field.
-            # This implementation reads it directly from the outdoor unit response.
+            # e_2008.p_01: LE uint16 × 0.1 kW; 0 when compressor idle
             value_fn=lambda d: _compressor_power_kw(d),
         ),
         DaikinSensorDescription(
@@ -120,6 +120,14 @@ def _make_descriptions() -> list[DaikinSensorDescription]:
             value_fn=lambda d: find_runtime_today(d),
         ),
     ]
+
+
+def _outdoor_temp_c(data: dict[str, Any]) -> float | None:
+    raw = find_pv(data, ADDR_OUTDOOR, *FIELD_OUTDOOR_TEMP)
+    val = decode_le_int16(raw)
+    if val is None:
+        return None
+    return round(val / 2, 1)
 
 
 def _compressor_power_kw(data: dict[str, Any]) -> float | None:

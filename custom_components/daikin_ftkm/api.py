@@ -53,6 +53,7 @@ class DaikinAPI:
     async def write(
         self,
         address: str,
+        root_entity: str,
         entity: str,
         param: str,
         value: str,
@@ -68,15 +69,20 @@ class DaikinAPI:
                         "pn": addr_node,
                         "pch": [
                             {
-                                "pn": entity,
-                                "pch": [{"pn": param, "pv": value}],
+                                "pn": root_entity,
+                                "pch": [
+                                    {
+                                        "pn": entity,
+                                        "pch": [{"pn": param, "pv": value}],
+                                    }
+                                ],
                             }
                         ],
                     },
                 }
             ]
         }
-        _LOGGER.debug("WRITE %s %s.%s=%s", address, entity, param, value)
+        _LOGGER.debug("WRITE %s %s.%s.%s=%s", address, root_entity, entity, param, value)
         async with self._session.put(
             self._url,
             json=payload,
@@ -120,6 +126,17 @@ def decode_le_uint16(hex_str: str | None) -> int | None:
     try:
         raw = bytes.fromhex(hex_str)
         return struct.unpack("<H", raw)[0]
+    except (ValueError, struct.error, TypeError):
+        return None
+
+
+def decode_le_int16(hex_str: str | None) -> int | None:
+    """Decode a 4-char LE signed int16 (e.g. '3D00' → 61, 'CEFF' → -50)."""
+    if hex_str is None:
+        return None
+    try:
+        raw = bytes.fromhex(hex_str)
+        return struct.unpack("<h", raw)[0]
     except (ValueError, struct.error, TypeError):
         return None
 
