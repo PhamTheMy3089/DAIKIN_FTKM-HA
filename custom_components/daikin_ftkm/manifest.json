@@ -5,7 +5,8 @@
   "codeowners": ["@PhamTheMy3089"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/phamthemy3089/daikin_ftkm-ha",
+  "documentation": "https://github.com/PhamTheMy3089/DAIKIN_FTKM-HA",
   "iot_class": "local_polling",
-  "requirements": []
+  "requirements": [],
+  "icon": "images/icon.svg"
 }

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="128" fill="#006CB7"/>
+
+  <!-- Snowflake center dot -->
+  <circle cx="128" cy="128" r="10" fill="white"/>
+
+  <!-- Snowflake arms (6 directions) -->
+  <!-- Top -->
+  <line x1="128" y1="128" x2="128" y2="52" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="108" y1="72"  x2="128" y2="92"  stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="148" y1="72"  x2="128" y2="92"  stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Bottom -->
+  <line x1="128" y1="128" x2="128" y2="204" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="108" y1="184" x2="128" y2="164" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="148" y1="184" x2="128" y2="164" stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Top-right -->
+  <line x1="128" y1="128" x2="194" y2="90" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="194" y1="110" x2="184" y2="90" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="174" y1="90"  x2="184" y2="90" stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Bottom-left -->
+  <line x1="128" y1="128" x2="62" y2="166" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="62"  y1="146" x2="72"  y2="166" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="82"  y1="166" x2="72"  y2="166" stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Top-left -->
+  <line x1="128" y1="128" x2="62" y2="90" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="62"  y1="110" x2="72"  y2="90" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="82"  y1="90"  x2="72"  y2="90" stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Bottom-right -->
+  <line x1="128" y1="128" x2="194" y2="166" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="194" y1="146" x2="184" y2="166" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="174" y1="166" x2="184" y2="166" stroke="white" stroke-width="7" stroke-linecap="round"/>
+</svg>
