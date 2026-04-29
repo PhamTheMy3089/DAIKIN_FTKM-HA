@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Daikin FTKM — Local API",
-        "description": "Enter the IP address of your Daikin unit (e.g. 192.168.100.204). No authentication required.",
+        "description": "Enter the IP address of your Daikin unit (e.g. 192.168.1.100). No authentication required.",
         "data": {
           "host": "IP Address"
         }

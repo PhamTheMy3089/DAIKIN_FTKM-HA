@@ -8,7 +8,7 @@ Custom Home Assistant integration for **Daikin FTKM50AVMV** (and similar FTKM/RK
 
 The official HA Daikin integration (via pydaikin) fails on firmware 2.8.0 with:
 ```
-Cannot connect to host 192.168.100.204:2000 ssl:default [Connect call failed]
+Cannot connect to host <DAIKIN_IP>:2000 ssl:default [Connect call failed]
 ```
 pydaikin tries port 2000 over SSL, which does not exist on this firmware.
 
