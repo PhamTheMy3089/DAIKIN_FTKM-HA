@@ -7,6 +7,5 @@
   "dependencies": [],
   "documentation": "https://github.com/PhamTheMy3089/DAIKIN_FTKM-HA",
   "iot_class": "local_polling",
-  "requirements": [],
-  "icon": "images/icon.svg"
+  "requirements": []
 }
