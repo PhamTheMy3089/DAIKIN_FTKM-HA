@@ -2,7 +2,7 @@
   "domain": "daikin_ftkm",
   "name": "Daikin FTKM (Local API)",
   "version": "1.0.0",
-  "codeowners": [],
+  "codeowners": ["@PhamTheMy3089"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/phamthemy3089/daikin_ftkm-ha",
